@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  password     String
+  credits      Int           @default(1)
+  role         String        @default("user")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  videos       Video[]
+  transactions Transaction[]
+}
+
+model Video {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  youtubeId   String
+  url         String
+  title       String
+  channel     String    @default("")
+  thumbnail   String    @default("")
+  durationSec Int       @default(0)
+  // QUEUED | DOWNLOADING | ANALYZING | CLIPPING | COMPLETED | FAILED
+  status      String    @default("QUEUED")
+  progress    Int       @default(0)
+  stageText   String    @default("")
+  error       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  clips       Clip[]
+
+  @@index([userId, createdAt])
+}
+
+model Clip {
+  id         String   @id @default(cuid())
+  videoId    String
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  order      Int      @default(0)
+  title      String
+  hook       String   @default("")
+  startSec   Int      @default(0)
+  endSec     Int      @default(0)
+  viralScore Int      @default(80)
+  subtitles  String   @default("[]")
+  createdAt  DateTime @default(now())
+
+  @@index([videoId])
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // TOPUP | USAGE | REFUND | BONUS
+  type        String
+  credits     Int
+  packageName String?
+  priceIdr    Int?
+  description String
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
