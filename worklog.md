@@ -21,3 +21,20 @@ Stage Summary:
 - Database SQLite via Prisma (User, Video, Clip, Transaction) — siap migrasi ke Postgres/Neon untuk deploy Vercel.
 - Semua alur inti terverifikasi end-to-end via browser automation.
 - File kunci: prisma/schema.prisma, src/lib/{auth,youtube,clipper,client,types}.tsx/ts, src/app/api/**, src/components/youclip/{landing,auth-page,dashboard,billing,legal,logo,samples}.tsx, src/app/{page,layout,globals.css}.
+
+---
+Task ID: 2
+Agent: Super Z (main agent)
+Task: Upload proyek YouClip clone ke GitHub (github.com/ilmanyazid123/clipper)
+
+Work Log:
+- Audit git tracking: temukan file sensitif ter-track (.env, db/custom.db berisi hash password user test, .zscripts/dev.pid).
+- git rm --cached untuk ketiga file sensitif; perbarui .gitignore (db/*.db, *.pid, /tool-results/, /upload/).
+- Buat README.md (fitur, teknologi, struktur, cara jalankan, API ringkas) dan .env.example (DATABASE_URL template).
+- Commit "YouClip clone: AI video clipper platform (Next.js + Prisma)" (be68803).
+- Tambah remote origin dengan token user, push branch main ke github.com/ilmanyazid123/clipper.
+- Verifikasi: git ls-remote = be68803 di refs/heads/main, upstream tracking origin/main aktif, HTTP 200 di URL repo.
+
+Stage Summary:
+- Repo GitHub ilmanyazid123/clipper berisi seluruh source code proyek (108 file) TANPA file sensitif (.env dan database lokal dikecualikan).
+- README.md + .env.example tersedia agar repo bisa dijalankan ulang orang lain (bun install -> prisma db push -> dev).
