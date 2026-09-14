@@ -58,3 +58,22 @@ Stage Summary:
 - Akun admin: admin@youclip.app / password alfanumerik di .env (ADMIN_PASSWORD), role admin, 100 kredit.
 - Repo GitHub terbarui (schema postgres, seed script, README Neon guide) TANPA kredensial asli.
 - Catatan platform: proses dev server yang dipicu dari tool call mati saat call berakhir; server bootstrap platform (13:50) mati di-kill saat migrasi. Preview butuh restart platform atau deploy Vercel.
+
+---
+Task ID: 4
+Agent: Super Z (main agent)
+Task: Deploy ke Vercel + fix build error PrismaClientConstructorValidationError
+
+Work Log:
+- Persiapan Vercel: audit next.config (output standalone aman utk Vercel), z-ai SDK punya fallback heuristik, AUTH_SECRET perlu env produksi.
+- Buat vercel.json (buildCommand "prisma generate && next build"), generate AUTH_SECRET openssl, set di .env.
+- Validasi: next build lokal sukses (11 static + 10 API). Push 533bad6.
+- User deploy via dashboard -> gagal: "Invalid value undefined for datasource db" saat collect page data /api/auth/login (env DATABASE_URL belum ada saat build di Vercel; db.ts lama meneruskan datasources {url: undefined} eksplisit).
+- Fix: src/lib/db.ts dirombak -> lazy PrismaClient via Proxy (constructor hanya jalan saat request pertama; override datasources hanya bila URL valid; log query hanya di development). Call site tidak berubah.
+- Replikasi: build TANPA env db (mv .env sementara + unset) -> EXIT 0. Build normal -> Compiled successfully. eslint db.ts -> OK. Runtime: login admin via API -> 200 data Neon (id cmu1d54fs...).
+- Push fix ke GitHub -> trigger auto-redeploy Vercel.
+
+Stage Summary:
+- Build Vercel-resistant: page data collection tidak butuh env database lagi.
+- Runtime tetap butuh 3 env di Vercel: DATABASE_URL, DIRECT_DATABASE_URL, AUTH_SECRET (semua environment).
+- Auto-redeploy aktif via Git integration; cek status di tab Deployments dashboard Vercel.
