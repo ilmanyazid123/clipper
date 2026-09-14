@@ -53,12 +53,75 @@ import {
   Home,
   FileText,
   Scissors,
+  Download,
 } from "lucide-react";
 
 const PROCESSING_STATUSES = ["QUEUED", "DOWNLOADING", "ANALYZING", "CLIPPING"];
 
 function statusLabel(v: VideoDTO): string {
   return v.stageText || v.status;
+}
+
+function slugify(text: string): string {
+  return (
+    text
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60)
+      .toLowerCase() || "klip"
+  );
+}
+
+/* ================= Unduh klip (MP4) ================= */
+
+function useClipDownload() {
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const download = useCallback(
+    async (clip: VideoDTO["clips"][number], video: VideoDTO, index: number) => {
+      if (busyId) return;
+      setBusyId(clip.id);
+      try {
+        const res = await fetch(`/api/clips/${clip.id}/download`);
+        const ct = res.headers.get("content-type") || "";
+        if (!res.ok || (!ct.includes("video") && !ct.includes("octet-stream"))) {
+          let msg = "Gagal mengunduh klip.";
+          try {
+            const j = await res.json();
+            if (j?.error) msg = j.error;
+          } catch {
+            /* respons bukan JSON */
+          }
+          throw new Error(msg);
+        }
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = `youclip-${slugify(video.title)}-klip-${index + 1}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objectUrl);
+        toast({
+          title: "Klip terunduh!",
+          description: `“${clip.title.slice(0, 60)}” tersimpan sebagai ${a.download}`,
+        });
+      } catch (err) {
+        toast({
+          title: "Unduhan gagal",
+          description:
+            err instanceof Error ? err.message : "Coba lagi beberapa saat.",
+          variant: "destructive",
+        });
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [busyId],
+  );
+
+  return { busyId, download };
 }
 
 /* ================= Navbar aplikasi ================= */
@@ -304,17 +367,29 @@ function ClipCard({
   video,
   index,
   onPlay,
+  downloading,
+  onDownload,
 }: {
   video: VideoDTO;
   index: number;
   onPlay: () => void;
+  downloading: boolean;
+  onDownload: () => void;
 }) {
   const clip = video.clips[index];
   if (!clip) return null;
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onPlay}
-      className="group w-full cursor-pointer overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:-translate-y-0.5 hover:shadow-lg"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onPlay();
+        }
+      }}
+      className="group w-full cursor-pointer overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <div className="relative flex aspect-[9/13] items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-transparent">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform group-hover:scale-110">
@@ -326,6 +401,23 @@ function ClipCard({
         <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
           <Flame className="h-3 w-3 text-orange-400" /> {clip.viralScore}
         </span>
+        <button
+          type="button"
+          aria-label={`Unduh klip ${index + 1}`}
+          title="Unduh video klip (MP4)"
+          disabled={downloading}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDownload();
+          }}
+          className="absolute bottom-2 right-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {downloading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+        </button>
       </div>
       <div className="p-3">
         <p className="line-clamp-2 min-h-[2.5rem] text-xs font-bold leading-snug">
@@ -335,7 +427,7 @@ function ClipCard({
           “{clip.hook || clip.subtitles[0] || "..."}”
         </p>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -347,6 +439,7 @@ function VideoDetailInner({
   onBack: () => void;
 }) {
   const [active, setActive] = useState(0);
+  const { busyId, download } = useClipDownload();
   const clip = video.clips[active];
 
   return (
@@ -383,6 +476,21 @@ function VideoDetailInner({
                   )}
                 </div>
                 {clip && (
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-full"
+                    disabled={busyId === clip.id}
+                    onClick={() => download(clip, video, active)}
+                  >
+                    {busyId === clip.id ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Unduh MP4 · {formatTs(clip.startSec)}–{formatTs(clip.endSec)}
+                  </Button>
+                )}
+                {clip && (
                   <div className="rounded-xl border border-border bg-muted/60 p-3">
                     <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                       Subtitle otomatis
@@ -408,7 +516,14 @@ function VideoDetailInner({
                 </p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {video.clips.map((c, i) => (
-                    <ClipCard key={c.id} video={video} index={i} onPlay={() => setActive(i)} />
+                    <ClipCard
+                      key={c.id}
+                      video={video}
+                      index={i}
+                      onPlay={() => setActive(i)}
+                      downloading={busyId === c.id}
+                      onDownload={() => download(c, video, i)}
+                    />
                   ))}
                 </div>
               </div>
