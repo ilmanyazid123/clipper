@@ -17,7 +17,7 @@ Aplikasi web fullstack yang mereplikasi fungsionalitas platform AI clipper: meng
 |---|---|
 | Frontend | Next.js 16 (App Router), TypeScript, Tailwind CSS 4, shadcn/ui |
 | Backend | Next.js API Routes |
-| Database | SQLite via Prisma ORM (siap migrasi ke Postgres/Neon untuk deploy Vercel) |
+| Database | PostgreSQL (Neon) via Prisma ORM — runtime via pgbouncer pooler, DDL via direct connection |
 | AI | z-ai-web-dev-sdk (LLM) dengan fallback heuristik |
 
 ## Struktur Proyek
@@ -36,15 +36,27 @@ src/app/page.tsx            # SPA dengan hash routing
 # 1. Install dependencies
 bun install   # atau: npm install
 
-# 2. Setup database
+# 2. Setup database — isi .env dengan kredensial Neon Postgres Anda
 cp .env.example .env
-npx prisma db push
+npx prisma db push        # buat tabel via DIRECT_DATABASE_URL
 
-# 3. Jalankan dev server
+# 3. Buat akun admin (email & password diambil dari ADMIN_* di .env)
+bun run db:seed
+
+# 4. Jalankan dev server
 bun run dev   # atau: npm run dev
 ```
 
-Buka http://localhost:3000 — pengguna baru mendapat kredit bonus awal untuk mencoba pipeline.
+Buka http://localhost:3000 — login dengan akun admin, atau registrasi akun baru (pengguna baru mendapat kredit bonus awal untuk mencoba pipeline).
+
+## Database Neon
+
+Aplikasi terhubung ke [Neon](https://neon.tech) Postgres dengan pola koneksi ganda:
+
+- `DATABASE_URL` — koneksi **pooled** (`-pooler` host + `pgbouncer=true`) untuk runtime aplikasi; aman untuk serverless (Vercel).
+- `DIRECT_DATABASE_URL` — koneksi **langsung** untuk perintah DDL (`prisma db push` / `prisma migrate`), dideklarasikan sebagai `directUrl` di `schema.prisma`.
+
+`src/lib/db.ts` juga memilih otomatis URL Postgres bila environment menyuntikkan `DATABASE_URL` non-Postgres (mis. default `file:` SQLite dari sandbox).
 
 ## API Ringkas
 
@@ -60,5 +72,6 @@ Buka http://localhost:3000 — pengguna baru mendapat kredit bonus awal untuk me
 
 ## Catatan
 
-- File `.env` dan database lokal (`db/*.db`) sengaja tidak di-commit — buat `.env` sendiri berisi `DATABASE_URL="file:./custom.db"`.
+- File `.env` (berisi kredensial Neon) dan database lokal (`db/*.db`) sengaja tidak di-commit — salin `.env.example` lalu isi kredensial Anda sendiri.
+- Password admin **tidak boleh** mengandung karakter `#` (dianggap awal komentar oleh parser dotenv) dan sebaiknya hindari juga tanda kutip.
 - Metadata video diambil via YouTube oEmbed publik; aplikasi tidak mendistribusikan konten berhak cipta — hanya menghasilkan rekomendasi klip (judul, timestamp, subtitle) berbasis analisis AI.

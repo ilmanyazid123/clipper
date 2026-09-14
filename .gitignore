@@ -62,3 +62,6 @@ server.log
 # tool results
 /tool-results/
 /upload/
+
+# contoh env boleh di-commit
+!.env.example
