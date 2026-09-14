@@ -90,3 +90,21 @@ Work Log:
 
 Stage Summary:
 - Solusi: verifikasi 3 env var (DATABASE_URL, DIRECT_DATABASE_URL, AUTH_SECRET) tercentang Production di dashboard, lalu Redeploy manual dari tab Deployments.
+
+---
+Task ID: 6
+Agent: Super Z (main agent)
+Task: Deploy Vercel via token — fix env var ber-prefix, redeploy, verifikasi login produksi
+
+Work Log:
+- Token Vercel dari user -> API valid. Project clipper = prj_Ch7DMD3oZhz46kf6dEZzbvT3qgeH (account saham-s-indonesia).
+- Audit env: SEMUA var ber-prefix clipper_video_* (artefak integrasi marketplace Neon), key DATABASE_URL/AUTH_SECRET tanpa prefix TIDAK ADA -> penyebab 500 runtime.
+- POST /v9/projects/{id}/env (upsert): buat DATABASE_URL (pooled+pgbouncer), DIRECT_DATABASE_URL (unpooled), AUTH_SECRET (sama dgn .env lokal) utk target production+preview+development.
+- Redeploy: CLI `vercel redeploy` hang streaming -> trigger via REST POST /v13/deployments gitSource github ilmanyazid123/clipper main -> dpl_Ac3RNwVHjoESzMx3FGY8i9U5K7o9 READY (~40s).
+- Verifikasi produksi: POST /api/auth/login -> 200 (admin cmu1d54fs..., credits 100); GET /api/auth/me + cookie -> 200 role admin.
+- Cleanup: hapus scripts fix-vercel-env.sh & redeploy-vercel.sh (mengandung token/kredensial, jangan masuk git).
+
+Stage Summary:
+- https://clipper-ruby-nine.vercel.app LIVE & terhubung Neon Postgres. Login admin berfungsi di produksi.
+- Env var lama ber-prefix clipper_video_* dibiarkan (tak dipakai app). Deployment baru via Git push akan otomatis bawa env yang benar.
+- Pengingat ke user: rotate token Vercel & password Neon (pernah terekspos di chat).
