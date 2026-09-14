@@ -38,3 +38,23 @@ Work Log:
 Stage Summary:
 - Repo GitHub ilmanyazid123/clipper berisi seluruh source code proyek (108 file) TANPA file sensitif (.env dan database lokal dikecualikan).
 - README.md + .env.example tersedia agar repo bisa dijalankan ulang orang lain (bun install -> prisma db push -> dev).
+
+---
+Task ID: 3
+Agent: Super Z (main agent)
+Task: Sambungkan aplikasi ke Neon Postgres (Vercel-ready) + seed akun admin
+
+Work Log:
+- Terima kredensial Neon dari user (ep-square-meadow-b34lh06k, ap-southeast-1). .env: DATABASE_URL (pooled + pgbouncer=true), DIRECT_DATABASE_URL (unpooled), ADMIN_*.
+- prisma/schema.prisma: provider sqlite -> postgresql + directUrl. prisma db push sukses ke neondb (2.6s); verifikasi 4 tabel (user/video/clip/transaction) 0 rows.
+- scripts/seed-admin.ts: upsert idempoten, scrypt hash (format salt:hash identik auth.ts), role admin, credits 100 dari env.
+- Bug fix 1: shell sandbox menyuntik DATABASE_URL=file: lama yang menimpa .env -> unset per-call + guard resolveDatabaseUrl() di src/lib/db.ts (fallback DIRECT_DATABASE_URL bila DATABASE_URL bukan postgres://).
+- Bug fix 2: password awal mengandung '#' -> dipotong parser dotenv jadi 'Admin!YouClip' -> hash tersimpan tidak cocok. Ganti password alfanumerik, re-seed, verify hash cocok.
+- E2E: dev server restart (setsid, unset env) -> POST /api/auth/login 200 (user Neon id cmu1d54fs...) -> GET /api/auth/me {role: admin, credits: 100}. Integrasi Neon terbukti end-to-end.
+- Git: perbaiki .gitignore (negasi !.env.example), stage 8 file, scan secret (bersih), commit cce206b "Connect to Neon Postgres" -> push ke github.com/ilmanyazid123/clipper.
+
+Stage Summary:
+- Aplikasi terhubung penuh ke Neon Postgres; SQLite tidak lagi dipakai runtime.
+- Akun admin: admin@youclip.app / password alfanumerik di .env (ADMIN_PASSWORD), role admin, 100 kredit.
+- Repo GitHub terbarui (schema postgres, seed script, README Neon guide) TANPA kredensial asli.
+- Catatan platform: proses dev server yang dipicu dari tool call mati saat call berakhir; server bootstrap platform (13:50) mati di-kill saat migrasi. Preview butuh restart platform atau deploy Vercel.
