@@ -77,3 +77,16 @@ Stage Summary:
 - Build Vercel-resistant: page data collection tidak butuh env database lagi.
 - Runtime tetap butuh 3 env di Vercel: DATABASE_URL, DIRECT_DATABASE_URL, AUTH_SECRET (semua environment).
 - Auto-redeploy aktif via Git integration; cek status di tab Deployments dashboard Vercel.
+
+---
+Task ID: 5
+Agent: Super Z (main agent)
+Task: Diagnosis login gagal di https://clipper-ruby-nine.vercel.app
+
+Work Log:
+- POST /api/auth/login & /api/auth/register di Vercel -> 500 (generic catch). /api/auth/me tanpa DB -> 200 {"user":null} = kode app sehat.
+- Koneksi langsung ke Neon dari sandbox -> admin@youclip.app ada (credits 100, role admin) = DB sehat, seed benar.
+- Kesimpulan: deployment Vercel berjalan TANPA env database ter-attach (env ditambahkan setelah deploy terakhir / salah environment / salah nama key). Env Vercel hanya berlaku untuk deployment BARU.
+
+Stage Summary:
+- Solusi: verifikasi 3 env var (DATABASE_URL, DIRECT_DATABASE_URL, AUTH_SECRET) tercentang Production di dashboard, lalu Redeploy manual dari tab Deployments.
